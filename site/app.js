@@ -222,7 +222,7 @@ function openArchive(id, button) {
   const poster = document.querySelector('#archive-poster');
   poster.src = record.poster;
   poster.alt = `${record.edition} 대회 포스터`;
-  document.querySelector('#archive-article').innerHTML = record.article.map((paragraph, index) => `<p${index === 0 ? ' class="article-byline"' : ''}>${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
+  document.querySelector('#archive-article').innerHTML = record.article.map((paragraph, index) => `<p${index === 0 ? ' class="article-byline"' : ''}>${escapeHtml(paragraph).replace(/\*([^*]+)\*/g, '<em>$1</em>').replaceAll('\n', '<br>')}</p>`).join('');
   archiveDialog.showModal();
   archiveDialog.querySelector('.archive-scroll').scrollTop = 0;
   archiveDialog.querySelector('.close-archive').focus();

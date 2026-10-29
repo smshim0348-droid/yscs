@@ -8,6 +8,21 @@ const upcomingSeason = {
   dateTime: '2026-11-14T13:00:00+09:00',
   format: '풀리그',
   participantCount: 5,
-  participantIds: [],
-  image: 'assets/schedule/event-07.png'
+  participantIds: ['01', '02', '03', '05', '06'],
+  image: 'assets/schedule/event-07.png',
+  tonamel: {
+    organizationId: '2ojDm',
+    competitionId: 'zicGx',
+    organizationUrl: 'https://tonamel.com/organization/2ojDm?game=yugioh_ocg',
+    competitionUrl: 'https://tonamel.com/competition/zicGx',
+    status: '개최 중',
+    lastCheckedAt: '2026-10-30T00:00:00+09:00',
+    participants: [
+      { playerId:'02', accountName:'타치바나 셰리', entryName:'에이징커브가 온 타치바나 셰리' },
+      { playerId:'05', accountName:'굇수', entryName:'진짜괴도카이바' },
+      { playerId:'03', accountName:'MamA', entryName:'! ! ! 낙 어 게 인 ! ! !' },
+      { playerId:'06', accountName:'Player18091527', entryName:'초능력 맛 좀 볼래?' },
+      { playerId:'01', accountName:'티엘', entryName:'티엘' }
+    ]
+  }
 };

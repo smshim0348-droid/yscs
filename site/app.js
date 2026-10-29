@@ -1,4 +1,14 @@
 const escapeHtml = value => String(value).replace(/[&<>"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character]));
+const localSimulation = ['localhost', '127.0.0.1'].includes(location.hostname) ? new URLSearchParams(location.search).get('simulate') : '';
+const seasonDeadline = season => new Date(new Date(season.dateTime).getTime() + 24 * 60 * 60 * 1000);
+const isSeasonExpired = (season, now = new Date()) => localSimulation === 'season-expired' || now >= seasonDeadline(season);
+const statsForIdentity = (identity, players = activePlayerData) => players.find(player => player.name === identity.name) || players[Number(identity.id) - 1] || fallbackPlayerData[Number(identity.id) - 1];
+const rankingTemplate = (players = activePlayerData) => {
+  const standings = playerDirectory.map(identity => ({ identity, titles:statsForIdentity(identity, players)?.championships || [] }))
+    .sort((a, b) => b.titles.length - a.titles.length || Number(a.identity.id) - Number(b.identity.id));
+  standings.forEach((item, index) => { item.rank = index && item.titles.length === standings[index - 1].titles.length ? standings[index - 1].rank : index + 1; });
+  return `<section class="ranking-strip" aria-label="YSCS 전체 플레이어 순위"><div class="ranking-heading"><span>YSCS CHAMPION RANKING</span><strong>우승 횟수 기준</strong></div><ol>${standings.map(item => `<li><b>${String(item.rank).padStart(2, '0')}</b><span><strong>${escapeHtml(item.identity.name)}</strong><small>PLAYER ${item.identity.id}</small></span><em>${item.titles.length}<small>WINS</small></em></li>`).join('')}</ol></section>`;
+};
 const archiveGridTemplate = () => `<section class="champion-archive" aria-label="역대 용산 CS 챔피언">
   <div class="archive-intro"><span>THE CHAMPIONS ARCHIVE</span><p>썸네일을 선택하면 각 대회의 포스터와 우승 기록 전문을 볼 수 있습니다.</p></div>
   <div class="archive-grid">${championshipArchive.map(record => `<button class="archive-card" type="button" data-archive-id="${record.id}" aria-haspopup="dialog" aria-controls="archive-dialog">
@@ -6,18 +16,28 @@ const archiveGridTemplate = () => `<section class="champion-archive" aria-label=
     <span class="archive-card-copy"><small>${escapeHtml(record.edition)}</small><strong>${escapeHtml(record.title)}</strong><i>기록 열기 <b aria-hidden="true">↗</b></i></span>
   </button>`).join('')}</div>
 </section>`;
-const seasonScheduleTemplate = () => `<section class="season-feature" aria-label="${escapeHtml(upcomingSeason.title)} 일정">
+const seasonParticipantsTemplate = () => `<section class="season-entrants" aria-label="참가 플레이어"><div class="season-entrants-heading"><span>CONFIRMED PLAYERS</span><a href="${upcomingSeason.tonamel.competitionUrl}" target="_blank" rel="noreferrer">TONAMEL 엔트리 확인 <b aria-hidden="true">↗</b></a></div><div class="season-entrant-grid">${upcomingSeason.tonamel.participants.map(participant => {
+  const identity = playerDirectory.find(player => player.id === participant.playerId);
+  return `<article class="season-entrant"><span>${participant.playerId}</span><div><strong>${escapeHtml(identity?.name || participant.accountName)}</strong><small>${escapeHtml(participant.entryName)}</small></div></article>`;
+}).join('')}</div><p class="season-source">ACCOUNT MATCH / ${escapeHtml(upcomingSeason.tonamel.status)} · 조직 ${escapeHtml(upcomingSeason.tonamel.organizationId)} · ${new Date(upcomingSeason.tonamel.lastCheckedAt).toLocaleDateString('ko-KR')} 확인</p></section>`;
+const seasonReadyTemplate = () => `<section class="season-ready" aria-label="다음 대회 준비 중"><span>BETWEEN SEASONS / NOTICE</span><i aria-hidden="true">✳</i><h3>다음 대회를 위한<br>준비 중입니다.</h3><p>${escapeHtml(upcomingSeason.title)} 일정은 개최 시각으로부터 24시간이 지나 보관 처리되었습니다.<br>새 대회가 모집을 시작하면 이 곳에 다시 안내합니다.</p><a href="${upcomingSeason.tonamel.organizationUrl}" target="_blank" rel="noreferrer">용산고등학교향우회 토나멜 <b aria-hidden="true">↗</b></a></section>`;
+const seasonScheduleTemplate = () => isSeasonExpired(upcomingSeason) ? seasonReadyTemplate() : `<section class="season-feature" aria-label="${escapeHtml(upcomingSeason.title)} 일정">
   <figure class="season-poster"><img src="${upcomingSeason.image}" alt="${escapeHtml(upcomingSeason.title)} 안내 이미지"></figure>
   <div class="season-summary">
     <div class="season-title"><span>${upcomingSeason.edition} / NEXT TOURNAMENT</span><h3>${escapeHtml(upcomingSeason.title)} <i>—</i> ${escapeHtml(upcomingSeason.venue)}</h3></div>
     <dl class="season-details">
       <div><dt>개최 일시</dt><dd><time datetime="${upcomingSeason.dateTime}">${escapeHtml(upcomingSeason.date)}</time></dd></div>
       <div><dt>토너먼트 형식</dt><dd>${escapeHtml(upcomingSeason.format)}</dd></div>
-      <div><dt>참가 인원</dt><dd>${upcomingSeason.participantCount}인 <small>PLAYER DATA LINK / PREPARING</small></dd></div>
+      <div><dt>참가 인원</dt><dd>${upcomingSeason.participantCount}인 <small>TONAMEL CONFIRMED ENTRY</small></dd></div>
     </dl>
+    ${seasonParticipantsTemplate()}
   </div>
 </section>`;
 let activePlayerData = fallbackPlayerData;
+function renderRanking(players = activePlayerData) {
+  const slot = document.querySelector('#ranking-slot');
+  if (slot) slot.innerHTML = rankingTemplate(players);
+}
 const playerGridTemplate = players => `<section class="player-directory" aria-label="YSCS 플레이어 7명">
   <div class="player-directory-meta"><span>07 REGISTERED PLAYERS</span><p id="player-sync-state">서버 캐시 · 매주 금요일 09:00 자동 갱신</p></div>
   <div class="player-grid">${playerDirectory.map(identity => {
@@ -90,6 +110,7 @@ async function hydratePlayerStatus() {
   let cached;
   try { cached = JSON.parse(localStorage.getItem(playerSheetConfig.cacheKey)); } catch { cached = null; }
   if (cached?.players) activePlayerData = cached.players;
+  renderRanking(activePlayerData);
   content.innerHTML = playerGridTemplate(activePlayerData);
   const state = content.querySelector('#player-sync-state');
   if (cached?.fetchedAt && new Date(cached.fetchedAt) >= latestRefreshBoundary()) {
@@ -102,12 +123,33 @@ async function hydratePlayerStatus() {
     if (!response.ok) response = await fetch(playerSheetConfig.csvUrl, { cache:'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     activePlayerData = buildPlayerData(await response.text());
+    renderRanking(activePlayerData);
     const fetchedAt = new Date().toISOString();
     localStorage.setItem(playerSheetConfig.cacheKey, JSON.stringify({ fetchedAt, players:activePlayerData }));
     if (dialog.open) { content.innerHTML = playerGridTemplate(activePlayerData); content.querySelector('#player-sync-state').textContent = `최근 갱신 ${new Date(fetchedAt).toLocaleDateString('ko-KR')} · 매주 금요일 09:00`; }
   } catch (error) {
     state.textContent = '오프라인 저장 기록 표시 중 · 다음 접속 시 다시 갱신';
     console.warn('YSCS player sheet sync failed:', error);
+  }
+}
+async function hydrateRankingFromSheet() {
+  let cached;
+  try { cached = JSON.parse(localStorage.getItem(playerSheetConfig.cacheKey)); } catch { cached = null; }
+  if (cached?.players) {
+    activePlayerData = cached.players;
+    renderRanking(activePlayerData);
+  }
+  if (cached?.fetchedAt && new Date(cached.fetchedAt) >= latestRefreshBoundary()) return;
+  try {
+    let response = await fetch(playerSheetConfig.cachedCsvUrl, { cache:'no-store' });
+    if (!response.ok) response = await fetch(playerSheetConfig.csvUrl, { cache:'no-store' });
+    if (!response.ok) return;
+    activePlayerData = buildPlayerData(await response.text());
+    const fetchedAt = new Date().toISOString();
+    localStorage.setItem(playerSheetConfig.cacheKey, JSON.stringify({ fetchedAt, players:activePlayerData }));
+    renderRanking(activePlayerData);
+  } catch (error) {
+    console.warn('YSCS ranking sync failed:', error);
   }
 }
 
@@ -197,6 +239,7 @@ async function playChampionshipStory() {
 function openSection(key, button) {
   const section = sections[key];
   if (!section) return;
+  if (key === 'season') section.content = seasonScheduleTemplate();
   trigger = button;
   document.querySelector('#dialog-eyebrow').textContent = section.index;
   document.querySelector('#dialog-letter').textContent = section.letter;
@@ -211,6 +254,8 @@ function openSection(key, button) {
   if (key === 'championship') playChampionshipStory();
   if (key === 'status') hydratePlayerStatus();
 }
+renderRanking();
+hydrateRankingFromSheet();
 function closeSection() { dialog.close(); }
 function openArchive(id, button) {
   const record = championshipArchive.find(item => item.id === id);
@@ -338,3 +383,9 @@ reducedMotion.addEventListener('change', () => {
   }
 });
 playIntro();
+if (localSimulation) {
+  finishIntro();
+  if (localSimulation === 'season' || localSimulation === 'season-expired') {
+    setTimeout(() => openSection('season', document.querySelector('[data-section="season"]')), 50);
+  }
+}

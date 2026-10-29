@@ -5,3 +5,4 @@ node_modules/
 *.log
 Untitled-1.png
 preview-*.png
+/artifacts/

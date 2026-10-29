@@ -39,3 +39,16 @@
 `npm run check`로 JavaScript 구문을 확인합니다.
 GitHub에는 소스를 커밋하고 Netlify에는 `site` 폴더를 배포합니다.
 원본 워크플로우 이미지와 로컬 검증 파일은 배포하지 않습니다.
+
+## 현재 공개 배포
+
+- 홈페이지: https://yscs-history.netlify.app/
+- GitHub: https://github.com/smshim0348-droid/yscs
+- Netlify 프로젝트 ID: c59a0cb3-0aa7-44e2-834d-5aad8f59a233
+- 최초 공개 버전: e980418 (2026-10-29)
+
+현재 Netlify Drop으로 `site` 폴더 안의 4개 파일을 직접 배포했습니다.
+GitHub 자동 배포는 아직 연결되지 않았습니다. 기존 Netlify GitHub 앱은 raw-sorter 저장소만 접근할 수 있습니다.
+자동 연결 시 GitHub의 Netlify 앱에 yscs 저장소를 추가한 뒤 기존 Netlify 프로젝트에서 연결하고, 배포 브랜치 main / 빌드 명령 없음 / 게시 폴더 site로 설정합니다. 새 Netlify 프로젝트를 중복 생성하지 않습니다.
+
+검증: JavaScript 구문 검사, 네 팝업 열기와 Escape 닫기, 메인 복귀와 초점 복원, 390px 모바일 렌더링, 공개 URL에서 시즌 일정 팝업 동작 확인.

@@ -24,7 +24,7 @@ const playerGridTemplate = players => `<section class="player-directory" aria-la
     const stats = players.find(player => player.name === identity.name) || fallbackPlayerData.find(player => player.name === identity.name);
     return `<button class="player-card" type="button" data-player-id="${identity.id}" aria-haspopup="dialog" aria-controls="player-dialog">
       <span class="player-card-number">${identity.id}</span><span class="player-card-art"><img src="${identity.image}" alt="" loading="lazy"></span>
-      <span class="player-card-copy"><small>PLAYER ${identity.id}</small><strong>${escapeHtml(identity.name)}</strong><span>${stats.wins}W — ${stats.losses}L <i>${escapeHtml(stats.rate)}</i></span><em>${escapeHtml(stats.favoriteDeck)}</em></span>
+      <span class="player-card-copy"><small>PLAYER ${identity.id}</small><strong>${escapeHtml(identity.name)}</strong>${stats.championships?.length ? `<span class="player-card-titles">${stats.championships.map(edition => `<b title="제${edition}회 용산 CS 우승"><i>★</i> 제${edition}회</b>`).join('')}</span>` : ''}<span>${stats.wins}W — ${stats.losses}L <i>${escapeHtml(stats.rate)}</i></span><em>${escapeHtml(stats.favoriteDeck)}</em></span>
     </button>`;
   }).join('')}</div>
 </section>`;
@@ -55,11 +55,16 @@ function buildPlayerData(csvText) {
   const matrixNames = rows[matrixHeader].slice(1, 8);
   const matrix = new Map(rows.slice(matrixHeader + 1, matrixHeader + 8).map(row => [row[0], row.slice(1, 8).map(value => Number(value) || 0)]));
   const deckCounts = new Map(playerDirectory.map(player => [player.name, new Map()]));
+  const championships = new Map(playerDirectory.map(player => [player.name, []]));
   rows.slice(matchHeader + 1).forEach(row => {
     [[row[2], row[3]], [row[4], row[5]]].forEach(([name, deck]) => {
       if (!deckCounts.has(name) || !deck || deck === '-') return;
       const counts = deckCounts.get(name); counts.set(deck, (counts.get(deck) || 0) + 1);
     });
+    if (row[6]?.includes('용산시리즈') && championships.has(row[2])) {
+      const edition = Number(row[0]?.match(/제\s*(\d+)회/)?.[1]);
+      if (edition && !championships.get(row[2]).includes(edition)) championships.get(row[2]).push(edition);
+    }
   });
   return playerDirectory.map(identity => {
     const stats = statMap.get(identity.name);
@@ -71,7 +76,7 @@ function buildPlayerData(csvText) {
       const playerColumn = matrixNames.indexOf(identity.name);
       opponents[name] = [matrix.get(identity.name)?.[opponentColumn] || 0, matrix.get(name)?.[playerColumn] || 0];
     });
-    return { name:identity.name, ...stats, favoriteDeck:decks[0]?.[0] || '기록 없음', opponents };
+    return { name:identity.name, ...stats, favoriteDeck:decks[0]?.[0] || '기록 없음', championships:championships.get(identity.name).sort((a, b) => a - b), opponents };
   });
 }
 function latestRefreshBoundary(now = new Date()) {
@@ -230,6 +235,10 @@ function openPlayer(id, button) {
   document.querySelector('#player-index').textContent = `${identity.id} / PLAYER PROFILE`;
   document.querySelector('#player-label').textContent = `YSCS REGISTERED PLAYER ${identity.id}`;
   document.querySelector('#player-title').textContent = identity.name;
+  const titles = stats.championships || [];
+  document.querySelector('#player-championships').innerHTML = titles.length
+    ? `<span class="championship-label">YONGSAN SERIES CHAMPION <b>${titles.length}×</b></span><div class="championship-medals">${titles.map(edition => `<span class="championship-medal" title="제${edition}회 용산 CS 우승"><i>★</i><b>제${edition}회</b><small>CHAMPION</small></span>`).join('')}</div>`
+    : '<span class="championship-empty">YONGSAN SERIES · CHALLENGER</span>';
   document.querySelector('#player-summary').innerHTML = `<div><small>통합 전적</small><strong>${stats.wins}W — ${stats.losses}L</strong><span>${stats.games} GAMES / ${escapeHtml(stats.rate)}</span></div><div><small>선호 덱</small><strong>${escapeHtml(stats.favoriteDeck)}</strong><span>MOST PLAYED DECK</span></div>`;
   document.querySelector('#player-versus').innerHTML = Object.entries(stats.opponents).map(([name, record]) => `<div><span>${escapeHtml(name)}</span><strong>${record[0]} <i>—</i> ${record[1]}</strong><small>W / L</small></div>`).join('');
   const image = document.querySelector('#player-image'); image.src = identity.image; image.alt = `${identity.name} 대표 라인아트`; image.dataset.playerId = identity.id;

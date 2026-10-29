@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121411">
+  <meta name="description" content="일곱 명의 플레이어, 하나의 우승. 용산 CS의 대회와 기록을 담는 YSCS 아카이브.">
+  <title>The HISTORY of YSCS — 용산 CS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro-caption">SEVEN PLAYERS. ONE CHAMPION.</div>
+    <div class="intro-word"><span>Y</span><span>S</span><span>C</span><span>S</span></div>
+    <div class="intro-line"></div>
+    <div class="intro-bottom"><span>YONGSAN CHAMPIONSHIP SERIES</span><button id="skip-intro" tabindex="-1">건너뛰기 ↗</button></div>
+  </div>
+
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand" aria-label="YSCS 용산 CS"><span class="brand-symbol">Y<span>↗</span></span><strong>YSCS<span class="brand-divider">/</span><span class="brand-ko">용산 CS</span></strong></div>
+      <div class="top-caption">YONGSAN CHAMPIONSHIP SERIES</div>
+      <button class="replay" id="replay-intro"><span aria-hidden="true">↺</span> INTRO <span class="replay-word">REPLAY</span></button>
+    </header>
+
+    <section class="hero" aria-labelledby="main-title">
+      <div class="hero-heading"><div class="eyebrow"><span class="live-dot"></span> OUR GAME. OUR HISTORY.</div><h1 id="main-title"><span>The HISTORY</span><span class="title-second"><i>of</i> YSCS<span class="title-star" aria-hidden="true">✳</span></span></h1></div>
+      <div class="hero-aside"><div class="seven-marks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="hero-statement">일곱 명의 플레이어. <br>하나의 우승.</p><p class="hero-description">함께 펼친 듀얼, 쌓여가는 기록. <br>우리의 이야기는 여기에서 계속됩니다.</p><span class="hero-index">THE YONGSAN CS ARCHIVE <span>↙</span></span></div>
+    </section>
+
+    <nav class="portal-grid" aria-label="YSCS 네 가지 구역">
+      <button class="portal portal-y" data-section="championship" aria-haspopup="dialog" aria-controls="section-dialog">
+        <span class="portal-top"><span class="portal-letter">Y</span><span class="portal-number">01 / TOURNAMENT</span><span class="portal-arrow" aria-hidden="true">↗</span></span>
+        <span class="portal-art art-cards" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="portal-copy"><span class="portal-korean">용산 챔피언십</span><span class="portal-title">Yongsan <br>Championship</span><span class="portal-description">우리의 대회가 시작되는 곳 <span>↗</span></span></span>
+      </button>
+      <button class="portal portal-status" data-section="status" aria-haspopup="dialog" aria-controls="section-dialog">
+        <span class="portal-top"><span class="portal-letter">S</span><span class="portal-number">02 / STATUS</span><span class="portal-arrow" aria-hidden="true">↗</span></span>
+        <span class="portal-art art-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="portal-copy"><span class="portal-korean">플레이어 & 현황</span><span class="portal-title">Status <br>Page</span><span class="portal-description">일곱 플레이어의 현재를 한눈에 <span>↗</span></span></span>
+      </button>
+      <button class="portal portal-history" data-section="history" aria-haspopup="dialog" aria-controls="section-dialog">
+        <span class="portal-top"><span class="portal-letter">C</span><span class="portal-number">03 / HALL OF FAME</span><span class="portal-arrow" aria-hidden="true">↗</span></span>
+        <span class="portal-art art-orbit" aria-hidden="true"><i></i><i></i><i></i><b>✳</b></span>
+        <span class="portal-copy"><span class="portal-korean">챔피언의 기록</span><span class="portal-title">Champion’s <br>History</span><span class="portal-description">우승의 순간, 그 이름을 남기다 <span>↗</span></span></span>
+      </button>
+      <button class="portal portal-season" data-section="season" aria-haspopup="dialog" aria-controls="section-dialog">
+        <span class="portal-top"><span class="portal-letter">S</span><span class="portal-number">04 / SCHEDULE</span><span class="portal-arrow" aria-hidden="true">↗</span></span>
+        <span class="portal-art art-calendar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="portal-copy"><span class="portal-korean">시즌 일정</span><span class="portal-title">Season <br>Schedule</span><span class="portal-description">우리가 다시 만날 다음 듀얼 <span>↗</span></span></span>
+      </button>
+    </nav>
+
+    <footer class="footer"><span>YSCS <span class="footer-slash">/</span> SEVEN PLAYERS, ONE HISTORY.</span><span class="footer-note">유희왕 OCG 플레이어들의 비공식 자체 대회</span><span class="footer-end">EST. TOGETHER <span aria-hidden="true">✳</span></span></footer>
+  </main>
+
+  <dialog id="section-dialog" class="section-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <div class="dialog-frame">
+      <div class="dialog-topbar"><span id="dialog-eyebrow"></span><button class="close-dialog" aria-label="팝업 닫기"><span class="close-label">CLOSE</span><span aria-hidden="true">×</span></button></div>
+      <div class="dialog-scroll"><div class="dialog-heading"><span class="dialog-letter" id="dialog-letter" aria-hidden="true"></span><span class="eyebrow" id="dialog-korean"></span><h2 id="dialog-title"></h2><p id="dialog-description"></p></div><div id="dialog-content"></div></div>
+      <div class="dialog-footer"><span>THE HISTORY OF YSCS</span><button class="back-button">메인으로 돌아가기 <span aria-hidden="true">↙</span></button></div>
+    </div>
+  </dialog>
+</body>
+</html>

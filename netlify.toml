@@ -1,6 +1,12 @@
 [build]
   publish = "site"
 
+[functions]
+  directory = "netlify/functions"
+
+[functions."refresh-player-sheet"]
+  schedule = "0 0 * * 5"
+
 [[headers]]
   for = "/*"
   [headers.values]

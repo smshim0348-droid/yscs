@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/preview.mjs",
-    "check": "node --check site/app.js && node --check scripts/preview.mjs"
+    "check": "node --check site/app.js && node --check scripts/preview.mjs && node --check netlify/functions/player-sheet.mjs && node --check netlify/functions/refresh-player-sheet.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^10.0.10"
   }
 }

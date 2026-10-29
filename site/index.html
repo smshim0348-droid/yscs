@@ -8,6 +8,9 @@
   <title>The HISTORY of YSCS — 용산 CS</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <script src="history-data.js" defer></script>
+  <script src="schedule-data.js" defer></script>
+  <script src="players-data.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -15,7 +18,7 @@
     <div class="intro-caption">SEVEN PLAYERS. ONE CHAMPION.</div>
     <div class="intro-word"><span>Y</span><span>S</span><span>C</span><span>S</span></div>
     <div class="intro-line"></div>
-    <div class="intro-bottom"><span>YONGSAN CHAMPIONSHIP SERIES</span><button id="skip-intro" tabindex="-1">건너뛰기 ↗</button></div>
+    <div class="intro-bottom"><span>YONGSAN CHAMPIONSHIP SERIES</span><button id="enter-site" disabled>메인 페이지 입장 <span aria-hidden="true">↗</span></button></div>
   </div>
 
   <main class="shell">
@@ -62,6 +65,31 @@
       <div class="dialog-scroll"><div class="dialog-heading"><span class="dialog-letter" id="dialog-letter" aria-hidden="true"></span><span class="eyebrow" id="dialog-korean"></span><h2 id="dialog-title"></h2><p id="dialog-description"></p></div><div id="dialog-content"></div></div>
       <div class="dialog-footer"><span>THE HISTORY OF YSCS</span><button class="back-button">메인으로 돌아가기 <span aria-hidden="true">↙</span></button></div>
     </div>
+  </dialog>
+
+  <dialog id="archive-dialog" class="archive-dialog" aria-labelledby="archive-title">
+    <article class="archive-frame">
+      <header class="archive-topbar"><span id="archive-index"></span><button class="close-archive" aria-label="챔피언 기록 닫기"><span>ARTICLE CLOSE</span><b aria-hidden="true">×</b></button></header>
+      <div class="archive-scroll">
+        <figure class="archive-poster"><img id="archive-poster" src="" alt=""></figure>
+        <div class="archive-heading"><span id="archive-edition"></span><h3 id="archive-title"></h3></div>
+        <div id="archive-article" class="archive-article"></div>
+      </div>
+    </article>
+  </dialog>
+
+  <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-title">
+    <article class="player-frame">
+      <header class="player-topbar"><span id="player-index"></span><button class="close-player" aria-label="플레이어 정보 닫기"><span>PROFILE CLOSE</span><b aria-hidden="true">×</b></button></header>
+      <div class="player-profile">
+        <div class="player-profile-copy">
+          <span id="player-label"></span><h3 id="player-title"></h3>
+          <div id="player-summary" class="player-summary"></div>
+          <section class="versus-section"><h4>상대 전적 <small>HEAD TO HEAD</small></h4><div id="player-versus" class="player-versus"></div></section>
+        </div>
+        <figure class="player-portrait"><img id="player-image" src="" alt=""></figure>
+      </div>
+    </article>
   </dialog>
 </body>
 </html>

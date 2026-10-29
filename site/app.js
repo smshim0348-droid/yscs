@@ -1,28 +1,194 @@
+const escapeHtml = value => String(value).replace(/[&<>"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character]));
+const archiveGridTemplate = () => `<section class="champion-archive" aria-label="역대 용산 CS 챔피언">
+  <div class="archive-intro"><span>THE CHAMPIONS ARCHIVE</span><p>썸네일을 선택하면 각 대회의 포스터와 우승 기록 전문을 볼 수 있습니다.</p></div>
+  <div class="archive-grid">${championshipArchive.map(record => `<button class="archive-card" type="button" data-archive-id="${record.id}" aria-haspopup="dialog" aria-controls="archive-dialog">
+    <span class="archive-card-image"><img class="archive-image-default" src="${record.thumbnail}" alt="${escapeHtml(record.edition)} 대회 포스터" loading="lazy"><img class="archive-image-hover" src="${record.hoverImage}" alt="" loading="lazy"><span>${record.id}</span></span>
+    <span class="archive-card-copy"><small>${escapeHtml(record.edition)}</small><strong>${escapeHtml(record.title)}</strong><i>기록 열기 <b aria-hidden="true">↗</b></i></span>
+  </button>`).join('')}</div>
+</section>`;
+const seasonScheduleTemplate = () => `<section class="season-feature" aria-label="${escapeHtml(upcomingSeason.title)} 일정">
+  <figure class="season-poster"><img src="${upcomingSeason.image}" alt="${escapeHtml(upcomingSeason.title)} 안내 이미지"></figure>
+  <div class="season-summary">
+    <div class="season-title"><span>${upcomingSeason.edition} / NEXT TOURNAMENT</span><h3>${escapeHtml(upcomingSeason.title)} <i>—</i> ${escapeHtml(upcomingSeason.venue)}</h3></div>
+    <dl class="season-details">
+      <div><dt>개최 일시</dt><dd><time datetime="${upcomingSeason.dateTime}">${escapeHtml(upcomingSeason.date)}</time></dd></div>
+      <div><dt>토너먼트 형식</dt><dd>${escapeHtml(upcomingSeason.format)}</dd></div>
+      <div><dt>참가 인원</dt><dd>${upcomingSeason.participantCount}인 <small>PLAYER DATA LINK / PREPARING</small></dd></div>
+    </dl>
+  </div>
+</section>`;
+let activePlayerData = fallbackPlayerData;
+const playerGridTemplate = players => `<section class="player-directory" aria-label="YSCS 플레이어 7명">
+  <div class="player-directory-meta"><span>07 REGISTERED PLAYERS</span><p id="player-sync-state">서버 캐시 · 매주 금요일 09:00 자동 갱신</p></div>
+  <div class="player-grid">${playerDirectory.map(identity => {
+    const stats = players.find(player => player.name === identity.name) || fallbackPlayerData.find(player => player.name === identity.name);
+    return `<button class="player-card" type="button" data-player-id="${identity.id}" aria-haspopup="dialog" aria-controls="player-dialog">
+      <span class="player-card-number">${identity.id}</span><span class="player-card-art"><img src="${identity.image}" alt="" loading="lazy"></span>
+      <span class="player-card-copy"><small>PLAYER ${identity.id}</small><strong>${escapeHtml(identity.name)}</strong><span>${stats.wins}W — ${stats.losses}L <i>${escapeHtml(stats.rate)}</i></span><em>${escapeHtml(stats.favoriteDeck)}</em></span>
+    </button>`;
+  }).join('')}</div>
+</section>`;
+
+function parseCsv(text) {
+  const rows = []; let row = []; let cell = ''; let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') { cell += '"'; index += 1; }
+      else if (character === '"') quoted = false;
+      else cell += character;
+    } else if (character === '"') quoted = true;
+    else if (character === ',') { row.push(cell.trim()); cell = ''; }
+    else if (character === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
+    else if (character !== '\r') cell += character;
+  }
+  if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows;
+}
+function buildPlayerData(csvText) {
+  const rows = parseCsv(csvText);
+  const statHeader = rows.findIndex(row => row[0] === '이름' && row[1] === '총 경기수');
+  const matrixHeader = rows.findIndex(row => row[0] === '승\\패');
+  const matchHeader = rows.findIndex(row => row[0] === '대회명' && row[2] === '승자');
+  if (statHeader < 0 || matrixHeader < 0 || matchHeader < 0) throw new Error('시트 구조를 확인할 수 없습니다.');
+  const statMap = new Map(rows.slice(statHeader + 1, matrixHeader).filter(row => playerDirectory.some(player => player.name === row[0])).map(row => [row[0], { games:Number(row[1]), wins:Number(row[2]), losses:Number(row[3]), rate:row[4] }]));
+  const matrixNames = rows[matrixHeader].slice(1, 8);
+  const matrix = new Map(rows.slice(matrixHeader + 1, matrixHeader + 8).map(row => [row[0], row.slice(1, 8).map(value => Number(value) || 0)]));
+  const deckCounts = new Map(playerDirectory.map(player => [player.name, new Map()]));
+  rows.slice(matchHeader + 1).forEach(row => {
+    [[row[2], row[3]], [row[4], row[5]]].forEach(([name, deck]) => {
+      if (!deckCounts.has(name) || !deck || deck === '-') return;
+      const counts = deckCounts.get(name); counts.set(deck, (counts.get(deck) || 0) + 1);
+    });
+  });
+  return playerDirectory.map(identity => {
+    const stats = statMap.get(identity.name);
+    if (!stats) throw new Error(`${identity.name}의 통합 기록이 없습니다.`);
+    const decks = [...deckCounts.get(identity.name).entries()].sort((a, b) => b[1] - a[1]);
+    const opponents = {};
+    matrixNames.filter(name => name !== identity.name).forEach(name => {
+      const opponentColumn = matrixNames.indexOf(name);
+      const playerColumn = matrixNames.indexOf(identity.name);
+      opponents[name] = [matrix.get(identity.name)?.[opponentColumn] || 0, matrix.get(name)?.[playerColumn] || 0];
+    });
+    return { name:identity.name, ...stats, favoriteDeck:decks[0]?.[0] || '기록 없음', opponents };
+  });
+}
+function latestRefreshBoundary(now = new Date()) {
+  const boundary = new Date(now); const daysSinceFriday = (now.getDay() - playerSheetConfig.refreshWeekday + 7) % 7;
+  boundary.setDate(now.getDate() - daysSinceFriday); boundary.setHours(playerSheetConfig.refreshHour, 0, 0, 0);
+  if (boundary > now) boundary.setDate(boundary.getDate() - 7);
+  return boundary;
+}
+async function hydratePlayerStatus() {
+  const content = document.querySelector('#dialog-content');
+  let cached;
+  try { cached = JSON.parse(localStorage.getItem(playerSheetConfig.cacheKey)); } catch { cached = null; }
+  if (cached?.players) activePlayerData = cached.players;
+  content.innerHTML = playerGridTemplate(activePlayerData);
+  const state = content.querySelector('#player-sync-state');
+  if (cached?.fetchedAt && new Date(cached.fetchedAt) >= latestRefreshBoundary()) {
+    state.textContent = `최근 갱신 ${new Date(cached.fetchedAt).toLocaleDateString('ko-KR')} · 매주 금요일 09:00`;
+    return;
+  }
+  state.textContent = '스프레드시트 기록을 갱신하는 중…';
+  try {
+    let response = await fetch(playerSheetConfig.cachedCsvUrl, { cache:'no-store' });
+    if (!response.ok) response = await fetch(playerSheetConfig.csvUrl, { cache:'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    activePlayerData = buildPlayerData(await response.text());
+    const fetchedAt = new Date().toISOString();
+    localStorage.setItem(playerSheetConfig.cacheKey, JSON.stringify({ fetchedAt, players:activePlayerData }));
+    if (dialog.open) { content.innerHTML = playerGridTemplate(activePlayerData); content.querySelector('#player-sync-state').textContent = `최근 갱신 ${new Date(fetchedAt).toLocaleDateString('ko-KR')} · 매주 금요일 09:00`; }
+  } catch (error) {
+    state.textContent = '오프라인 저장 기록 표시 중 · 다음 접속 시 다시 갱신';
+    console.warn('YSCS player sheet sync failed:', error);
+  }
+}
+
 const sections = {
   championship: {
     letter: 'Y', index: '01 / TOURNAMENT', korean: '용산 챔피언십', title: 'Yongsan Championship',
     description: '일곱 명의 유희왕 OCG 플레이어가 모여, 우승을 향해 펼치는 우리만의 대회.',
-    content: `<dl class="overview"><div><dt>참여 플레이어</dt><dd>7 <small>PLAYERS</small></dd></div><div><dt>플레이 종목</dt><dd>유희왕 OCG</dd></div><div><dt>운영 방식</dt><dd>정기 자체 대회</dd></div></dl><section class="placeholder"><span class="placeholder-tag">ABOUT THE CHAMPIONSHIP</span><h3>용산에서 이어지는 우리의 듀얼</h3><p>YSCS, 일명 ‘용씨’는 국내 유희왕 OCG 한국 공인 대회의 포맷을 따라 진행하는 비공식 자체 대회입니다. 모든 플레이어는 하나의 목표, 우승을 향해 플레이합니다.</p><div class="placeholder-empty">대회 안내와 진행 내용을 담을 공간입니다.<br>세부 내용은 추후 추가됩니다.</div></section>`
+    content: `<section class="championship-story" aria-label="용산 챔피언십 소개">
+      <p class="typing-paragraph" data-type-text="사는 곳도, 자라온 환경도, 지내온 시간도 모두 다른 7명의 사람들이, 유희왕이라는 하나의 공통된 취미 하나로 모여온 대회입니다."><span class="typing-text" aria-hidden="true"></span><span class="typing-cursor" aria-hidden="true"></span></p>
+      <p class="typing-paragraph" data-type-text="YSCS, 용산 CS, 용씨. 부르는 명칭은 다 다르지만, 자신이 애정하는 덱을 가지고 우승이라는 하나의 목표를 지향하며 지금도 끊임없이 플레이하고 있습니다."><span class="typing-text" aria-hidden="true"></span><span class="typing-cursor" aria-hidden="true"></span></p>
+      <p class="typing-paragraph typing-paragraph-final" data-type-text="모든 플레이어는 자신의 『운, 노력, 그리고 재능』을 시험합니다. 모든 경쟁과 어려움을 극복해낸 단 한 명의 플레이어만이 우승이라는 영광을 거머쥡니다."><span class="typing-text" aria-hidden="true"></span><span class="typing-cursor" aria-hidden="true"></span></p>
+      <div class="virtue-grid" aria-label="운, 노력, 재능">
+        <div class="virtue virtue-luck" tabindex="0" aria-describedby="virtue-luck-detail">
+          <span class="virtue-icon" aria-hidden="true">⚄</span><strong>운</strong><small>LUCK</small>
+          <div class="virtue-detail" id="virtue-luck-detail" role="tooltip"><span>01 / LUCK</span><p>자신이 설계한 덱 빌딩을 토대로, 선공에서의 공격권과 후공에서의 유발 및 방해권, 그 선후공을 정하는 하이 다이스 롤, 상대방의 매칭까지를 전부 시험합니다.</p></div>
+        </div>
+        <div class="virtue virtue-effort" tabindex="0" aria-describedby="virtue-effort-detail">
+          <span class="virtue-icon" aria-hidden="true">↟</span><strong>노력</strong><small>EFFORT</small>
+          <div class="virtue-detail" id="virtue-effort-detail" role="tooltip"><span>02 / EFFORT</span><p>현재 메타를 공부하고 이해하며, 자신의 덱의 콤보와 전개, 포텐셜을 끌어올릴 수 있는 모든 숙련도를 시험합니다.</p></div>
+        </div>
+        <div class="virtue virtue-talent" tabindex="0" aria-describedby="virtue-talent-detail">
+          <span class="virtue-icon" aria-hidden="true">✦</span><strong>재능</strong><small>TALENT</small>
+          <div class="virtue-detail" id="virtue-talent-detail" role="tooltip"><span>03 / TALENT</span><p>랜덤한 첫 패를 가지고 어떤 무브를 가져갈 지, 찰나의 순간 내릴 수 있는 판단력을 시험합니다.</p></div>
+        </div>
+      </div>
+    </section>`
   },
   status: {
     letter: 'S', index: '02 / STATUS', korean: '플레이어 & 현황', title: 'Status Page',
     description: '같은 테이블에서 만나는 일곱 플레이어. 이곳에서 각자의 이야기를 이어갑니다.',
-    content: `<div class="player-slots" aria-label="등록 예정인 플레이어 7명">${Array.from({length: 7}, (_, i) => `<div class="player-slot"><strong>0${i + 1}</strong><span>PLAYER</span></div>`).join('')}</div><section class="placeholder"><span class="placeholder-tag">PLAYER STATUS</span><h3>일곱 명의 플레이어, 일곱 개의 이야기</h3><p>플레이어 소개와 대회 현황을 담을 공간입니다. 표시할 정보와 구성은 다음 제작 단계에서 정해집니다.</p><div class="placeholder-empty">아직 등록된 플레이어 정보가 없습니다.</div></section>`
+    content: playerGridTemplate(fallbackPlayerData)
   },
   history: {
     letter: 'C', index: '03 / HALL OF FAME', korean: '챔피언의 기록', title: 'Champion’s History',
     description: '치열했던 듀얼의 끝, 우승의 순간을 기록합니다.',
-    content: `<section class="placeholder"><span class="placeholder-tag">THE CHAMPIONS ARCHIVE</span><h3>그날의 챔피언을 기억하는 방법</h3><p>역대 대회의 우승자와 우승 기록을 보관할 공간입니다. 실제 대회 기록을 바탕으로 하나씩 채워집니다.</p><div class="placeholder-empty">아직 등록된 우승 기록이 없습니다.</div></section>`
+    content: archiveGridTemplate()
   },
   season: {
     letter: 'S', index: '04 / SCHEDULE', korean: '시즌 일정', title: 'Season Schedule',
     description: '다음 만남, 다음 대회. 우리의 다음 듀얼을 준비합니다.',
-    content: `<section class="placeholder"><span class="placeholder-tag">NEXT UP</span><h3>다음 이야기가 시작될 시간</h3><p>시즌별 대회 일정을 확인할 공간입니다. 일정이 정해지면 이곳에 기록됩니다.</p><div class="placeholder-empty">아직 등록된 시즌 일정이 없습니다.</div></section>`
+    content: seasonScheduleTemplate()
   }
 };
 
 const dialog = document.querySelector('#section-dialog');
+const archiveDialog = document.querySelector('#archive-dialog');
+const playerDialog = document.querySelector('#player-dialog');
 let trigger = null;
+let archiveTrigger = null;
+let playerTrigger = null;
+let storyRun = 0;
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+async function playChampionshipStory() {
+  const currentRun = ++storyRun;
+  const paragraphs = [...document.querySelectorAll('.typing-paragraph')];
+  const virtueGrid = document.querySelector('.virtue-grid');
+  paragraphs.forEach(paragraph => paragraph.setAttribute('aria-label', paragraph.dataset.typeText));
+  const showCompletedStory = () => {
+    paragraphs.forEach(paragraph => {
+      paragraph.querySelector('.typing-text').textContent = paragraph.dataset.typeText;
+      paragraph.classList.add('is-complete');
+    });
+    paragraphs.at(-1).querySelector('.typing-text').innerHTML = '모든 플레이어는 자신의 『<em>운</em>, <em>노력</em>, 그리고 <em>재능</em>』을 시험합니다. 모든 경쟁과 어려움을 극복해낸 단 한 명의 플레이어만이 우승이라는 영광을 거머쥡니다.';
+    virtueGrid.classList.add('is-visible');
+  };
+  if (reducedMotion.matches) {
+    showCompletedStory();
+    return;
+  }
+  for (const paragraph of paragraphs) {
+    if (currentRun !== storyRun || !dialog.open) return;
+    paragraph.classList.add('is-typing');
+    const output = paragraph.querySelector('.typing-text');
+    for (const character of paragraph.dataset.typeText) {
+      if (currentRun !== storyRun || !dialog.open) return;
+      output.textContent += character;
+      await wait(character === '.' ? 180 : character === ',' ? 85 : 24);
+    }
+    paragraph.classList.remove('is-typing');
+    paragraph.classList.add('is-complete');
+    await wait(280);
+  }
+  if (currentRun !== storyRun || !dialog.open) return;
+  paragraphs.at(-1).querySelector('.typing-text').innerHTML = '모든 플레이어는 자신의 『<em>운</em>, <em>노력</em>, 그리고 <em>재능</em>』을 시험합니다. 모든 경쟁과 어려움을 극복해낸 단 한 명의 플레이어만이 우승이라는 영광을 거머쥡니다.';
+  virtueGrid.classList.add('is-visible');
+}
 function openSection(key, button) {
   const section = sections[key];
   if (!section) return;
@@ -37,13 +203,51 @@ function openSection(key, button) {
   document.body.classList.add('modal-open');
   document.querySelector('.dialog-scroll').scrollTop = 0;
   document.querySelector('.close-dialog').focus();
+  if (key === 'championship') playChampionshipStory();
+  if (key === 'status') hydratePlayerStatus();
 }
 function closeSection() { dialog.close(); }
+function openArchive(id, button) {
+  const record = championshipArchive.find(item => item.id === id);
+  if (!record) return;
+  archiveTrigger = button;
+  document.querySelector('#archive-index').textContent = `${record.id} / CHAMPION ARTICLE`;
+  document.querySelector('#archive-edition').textContent = record.edition;
+  document.querySelector('#archive-title').textContent = record.title;
+  const poster = document.querySelector('#archive-poster');
+  poster.src = record.poster;
+  poster.alt = `${record.edition} 대회 포스터`;
+  document.querySelector('#archive-article').innerHTML = record.article.map((paragraph, index) => `<p${index === 0 ? ' class="article-byline"' : ''}>${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
+  archiveDialog.showModal();
+  archiveDialog.querySelector('.archive-scroll').scrollTop = 0;
+  archiveDialog.querySelector('.close-archive').focus();
+}
+function openPlayer(id, button) {
+  const identity = playerDirectory.find(player => player.id === id);
+  const stats = activePlayerData.find(player => player.name === identity?.name);
+  if (!identity || !stats) return;
+  playerTrigger = button;
+  document.querySelector('#player-index').textContent = `${identity.id} / PLAYER PROFILE`;
+  document.querySelector('#player-label').textContent = `YSCS REGISTERED PLAYER ${identity.id}`;
+  document.querySelector('#player-title').textContent = identity.name;
+  document.querySelector('#player-summary').innerHTML = `<div><small>통합 전적</small><strong>${stats.wins}W — ${stats.losses}L</strong><span>${stats.games} GAMES / ${escapeHtml(stats.rate)}</span></div><div><small>선호 덱</small><strong>${escapeHtml(stats.favoriteDeck)}</strong><span>MOST PLAYED DECK</span></div>`;
+  document.querySelector('#player-versus').innerHTML = Object.entries(stats.opponents).map(([name, record]) => `<div><span>${escapeHtml(name)}</span><strong>${record[0]} <i>—</i> ${record[1]}</strong><small>W / L</small></div>`).join('');
+  const image = document.querySelector('#player-image'); image.src = identity.image; image.alt = `${identity.name} 대표 라인아트`; image.dataset.playerId = identity.id;
+  playerDialog.showModal(); playerDialog.querySelector('.close-player').focus();
+}
 document.querySelectorAll('[data-section]').forEach(button => {
   button.addEventListener('click', () => openSection(button.dataset.section, button));
 });
+document.querySelector('#dialog-content').addEventListener('click', event => {
+  const card = event.target.closest('[data-archive-id]');
+  if (card) openArchive(card.dataset.archiveId, card);
+  const player = event.target.closest('[data-player-id]');
+  if (player) openPlayer(player.dataset.playerId, player);
+});
 document.querySelector('.close-dialog').addEventListener('click', closeSection);
 document.querySelector('.back-button').addEventListener('click', closeSection);
+document.querySelector('.close-archive').addEventListener('click', () => archiveDialog.close());
+document.querySelector('.close-player').addEventListener('click', () => playerDialog.close());
 // Close only if both pointer press and release occurred on the backdrop.
 let backdropPress = false;
 function isBackdrop(event) {
@@ -56,41 +260,72 @@ dialog.addEventListener('click', event => {
   backdropPress = false;
 });
 dialog.addEventListener('close', () => {
+  storyRun += 1;
   document.body.classList.remove('modal-open');
   trigger?.focus();
 });
+let archiveBackdropPress = false;
+function isArchiveBackdrop(event) {
+  const rect = archiveDialog.getBoundingClientRect();
+  return event.target === archiveDialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
+}
+archiveDialog.addEventListener('pointerdown', event => { archiveBackdropPress = isArchiveBackdrop(event); });
+archiveDialog.addEventListener('click', event => {
+  if (archiveBackdropPress && isArchiveBackdrop(event)) archiveDialog.close();
+  archiveBackdropPress = false;
+});
+archiveDialog.addEventListener('close', () => archiveTrigger?.focus());
+let playerBackdropPress = false;
+function isPlayerBackdrop(event) {
+  const rect = playerDialog.getBoundingClientRect();
+  return event.target === playerDialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
+}
+playerDialog.addEventListener('pointerdown', event => { playerBackdropPress = isPlayerBackdrop(event); });
+playerDialog.addEventListener('click', event => {
+  if (playerBackdropPress && isPlayerBackdrop(event)) playerDialog.close();
+  playerBackdropPress = false;
+});
+playerDialog.addEventListener('close', () => playerTrigger?.focus());
 
 const intro = document.querySelector('#intro');
 const shell = document.querySelector('.shell');
-const skip = document.querySelector('#skip-intro');
+const enterButton = document.querySelector('#enter-site');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-let introTimer;
 let replayed = false;
 function finishIntro() {
-  clearTimeout(introTimer);
   intro.classList.add('is-finished');
   intro.setAttribute('aria-hidden', 'true');
-  skip.tabIndex = -1;
+  enterButton.tabIndex = -1;
   shell.inert = false;
-  if (replayed || document.activeElement === skip) document.querySelector('#replay-intro').focus();
+  document.querySelector('#replay-intro').focus();
 }
 function playIntro() {
-  clearTimeout(introTimer);
-  if (reducedMotion.matches) return finishIntro();
   shell.inert = true;
   intro.classList.remove('is-finished');
   intro.setAttribute('aria-hidden', 'false');
-  skip.tabIndex = 0;
+  enterButton.tabIndex = 0;
+  enterButton.disabled = true;
   intro.querySelectorAll('.intro-word span, .intro-line').forEach(element => {
     element.style.animation = 'none';
     void element.offsetWidth;
     element.style.animation = '';
   });
-  if (replayed) skip.focus();
-  introTimer = setTimeout(finishIntro, 1900);
+  const enableEntry = () => {
+    enterButton.disabled = false;
+    if (replayed || reducedMotion.matches) enterButton.focus();
+  };
+  if (reducedMotion.matches) {
+    enableEntry();
+  } else {
+    intro.querySelector('.intro-line').addEventListener('animationend', enableEntry, { once: true });
+  }
 }
-skip.addEventListener('click', finishIntro);
+enterButton.addEventListener('click', finishIntro);
 document.querySelector('#replay-intro').addEventListener('click', () => { replayed = true; playIntro(); });
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && !intro.classList.contains('is-finished')) finishIntro(); });
-reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) finishIntro(); });
+reducedMotion.addEventListener('change', () => {
+  if (!intro.classList.contains('is-finished') && reducedMotion.matches) {
+    enterButton.disabled = false;
+    enterButton.focus();
+  }
+});
 playIntro();

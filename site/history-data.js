@@ -95,3 +95,12 @@ const championshipArchive = [
     ]
   }
 ];
+
+const venueArchive = [
+  { id:'01', edition:'제 1회', name:'[검열됨]', status:'PRIVATE VENUE', available:false },
+  { id:'02', edition:'제 2회', name:'도곡듀얼샵', address:'서울 강남구 논현로36길 27 지하', query:'도곡듀얼샵 서울 강남구 논현로36길 27', available:true },
+  { id:'03', edition:'제 3회', name:'신당 카드스퀘어', address:'서울 중구 다산로40길 51 지하 1층', query:'카드스퀘어 서울 중구 다산로40길 51', available:true },
+  { id:'04', edition:'제 4회', name:'신당 카드스퀘어', address:'서울 중구 다산로40길 51 지하 1층', query:'카드스퀘어 서울 중구 다산로40길 51', available:true },
+  { id:'05', edition:'제 5회', name:'[수정중]', status:'VENUE DATA PENDING', available:false },
+  { id:'06', edition:'제 6회', name:'중대 미르 보드게임장', address:'서울 동작구 흑석로 81-6', query:'미르보드게임 서울 동작구 흑석로 81-6', available:true }
+];

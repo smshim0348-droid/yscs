@@ -11,11 +11,12 @@ const rankingTemplate = (players = activePlayerData) => {
   return `<section class="ranking-strip" aria-label="YSCS 전체 플레이어 순위"><div class="ranking-heading"><span>YSCS CHAMPION RANKING</span><strong>우승 횟수 기준</strong></div><ol>${standings.map(item => `<li><b>${String(item.rank).padStart(2, '0')}</b><span><strong>${escapeHtml(displayNameForIdentity(item.identity, players))}</strong><small>PLAYER ${item.identity.id}</small></span><em>${item.titles.length}<small>WINS</small></em></li>`).join('')}</ol></section>`;
 };
 const archiveGridTemplate = () => `<section class="champion-archive" aria-label="역대 용산 CS 챔피언">
-  <div class="archive-intro"><span>THE CHAMPIONS ARCHIVE</span><p>썸네일을 선택하면 각 대회의 포스터와 우승 기록 전문을 볼 수 있습니다.</p></div>
-  <div class="archive-grid">${championshipArchive.map(record => `<button class="archive-card" type="button" data-archive-id="${record.id}" aria-haspopup="dialog" aria-controls="archive-dialog">
+  <div class="archive-intro"><div><span>THE CHAMPIONS ARCHIVE</span><p>왼쪽에서 오른쪽으로 이어지는 우승의 기록.</p></div><div class="rail-controls" aria-label="챔피언 아카이브 이동"><button type="button" data-rail="archive" data-direction="-1" aria-label="이전 챔피언">←</button><button type="button" data-rail="archive" data-direction="1" aria-label="다음 챔피언">→</button></div></div>
+  <div class="archive-viewport" data-rail-target="archive"><div class="archive-grid">${championshipArchive.map(record => `<button class="archive-card" type="button" data-archive-id="${record.id}" aria-haspopup="dialog" aria-controls="archive-dialog">
     <span class="archive-card-image"><img class="archive-image-default" src="${record.thumbnail}" alt="${escapeHtml(record.edition)} 대회 포스터" loading="lazy"><img class="archive-image-hover" src="${record.hoverImage}" alt="" loading="lazy"><span>${record.id}</span></span>
     <span class="archive-card-copy"><small>${escapeHtml(record.edition)}</small><strong>${escapeHtml(record.title)}</strong><i>기록 열기 <b aria-hidden="true">↗</b></i></span>
-  </button>`).join('')}</div>
+  </button>`).join('')}</div></div>
+  <section class="venue-archive" aria-label="역대 용산 CS 개최 장소"><div class="venue-heading"><div><span>THE PLACES WE PLAYED</span><p>용산 CS의 기록이 만들어진 장소들.</p></div><div class="rail-controls" aria-label="개최 장소 이동"><button type="button" data-rail="venue" data-direction="-1" aria-label="이전 장소">←</button><button type="button" data-rail="venue" data-direction="1" aria-label="다음 장소">→</button></div></div><div class="venue-viewport" data-rail-target="venue"><div class="venue-grid">${venueArchive.map(venue => `<button class="venue-card${venue.available ? '' : ' is-unavailable'}" type="button" data-venue-id="${venue.id}" ${venue.available ? 'aria-haspopup="dialog" aria-controls="venue-dialog"' : 'disabled'}><span>${venue.id}</span><div><small>${escapeHtml(venue.edition)} / VENUE</small><strong>${escapeHtml(venue.name)}</strong><em>${venue.available ? escapeHtml(venue.address) : escapeHtml(venue.status)}</em></div><b aria-hidden="true">${venue.available ? '↗' : '—'}</b></button>`).join('')}</div></div></section>
 </section>`;
 const seasonParticipantsTemplate = () => `<section class="season-entrants" aria-label="참가 플레이어"><div class="season-entrants-heading"><span>CONFIRMED PLAYERS</span><a href="${upcomingSeason.tonamel.competitionUrl}" target="_blank" rel="noreferrer">TONAMEL 엔트리 확인 <b aria-hidden="true">↗</b></a></div><div class="season-entrant-grid">${upcomingSeason.tonamel.participants.map(participant => {
   const identity = playerDirectory.find(player => player.id === participant.playerId);
@@ -203,9 +204,11 @@ const sections = {
 
 const dialog = document.querySelector('#section-dialog');
 const archiveDialog = document.querySelector('#archive-dialog');
+const venueDialog = document.querySelector('#venue-dialog');
 const playerDialog = document.querySelector('#player-dialog');
 let trigger = null;
 let archiveTrigger = null;
+let venueTrigger = null;
 let playerTrigger = null;
 let storyRun = 0;
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -279,6 +282,26 @@ function openArchive(id, button) {
   archiveDialog.querySelector('.archive-scroll').scrollTop = 0;
   archiveDialog.querySelector('.close-archive').focus();
 }
+function openVenue(id, button) {
+  const venue = venueArchive.find(item => item.id === id && item.available);
+  if (!venue) return;
+  venueTrigger = button;
+  const mapQuery = encodeURIComponent(venue.query);
+  document.querySelector('#venue-index').textContent = `${venue.id} / TOURNAMENT VENUE`;
+  document.querySelector('#venue-edition').textContent = `${venue.edition} 용산 CS`;
+  document.querySelector('#venue-title').textContent = venue.name;
+  document.querySelector('#venue-address').textContent = venue.address;
+  document.querySelector('#venue-map').src = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
+  document.querySelector('#venue-map-link').href = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+  venueDialog.showModal();
+  venueDialog.querySelector('.close-venue').focus();
+}
+function moveRail(name, direction) {
+  const viewport = document.querySelector(`[data-rail-target="${name}"]`);
+  if (!viewport) return;
+  const card = viewport.querySelector(name === 'archive' ? '.archive-card' : '.venue-card');
+  viewport.scrollBy({ left:direction * ((card?.getBoundingClientRect().width || 280) + 14), behavior:'smooth' });
+}
 function openPlayer(id, button) {
   const identity = playerDirectory.find(player => player.id === id);
   const stats = activePlayerData.find(player => player.id === identity?.id) || activePlayerData[Number(id) - 1];
@@ -300,14 +323,19 @@ document.querySelectorAll('[data-section]').forEach(button => {
   button.addEventListener('click', () => openSection(button.dataset.section, button));
 });
 document.querySelector('#dialog-content').addEventListener('click', event => {
+  const railButton = event.target.closest('[data-rail]');
+  if (railButton) moveRail(railButton.dataset.rail, Number(railButton.dataset.direction));
   const card = event.target.closest('[data-archive-id]');
   if (card) openArchive(card.dataset.archiveId, card);
+  const venue = event.target.closest('[data-venue-id]');
+  if (venue && !venue.disabled) openVenue(venue.dataset.venueId, venue);
   const player = event.target.closest('[data-player-id]');
   if (player) openPlayer(player.dataset.playerId, player);
 });
 document.querySelector('.close-dialog').addEventListener('click', closeSection);
 document.querySelector('.back-button').addEventListener('click', closeSection);
 document.querySelector('.close-archive').addEventListener('click', () => archiveDialog.close());
+document.querySelector('.close-venue').addEventListener('click', () => venueDialog.close());
 document.querySelector('.close-player').addEventListener('click', () => playerDialog.close());
 // Close only if both pointer press and release occurred on the backdrop.
 let backdropPress = false;
@@ -336,6 +364,20 @@ archiveDialog.addEventListener('click', event => {
   archiveBackdropPress = false;
 });
 archiveDialog.addEventListener('close', () => archiveTrigger?.focus());
+let venueBackdropPress = false;
+function isVenueBackdrop(event) {
+  const rect = venueDialog.getBoundingClientRect();
+  return event.target === venueDialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
+}
+venueDialog.addEventListener('pointerdown', event => { venueBackdropPress = isVenueBackdrop(event); });
+venueDialog.addEventListener('click', event => {
+  if (venueBackdropPress && isVenueBackdrop(event)) venueDialog.close();
+  venueBackdropPress = false;
+});
+venueDialog.addEventListener('close', () => {
+  document.querySelector('#venue-map').src = '';
+  venueTrigger?.focus();
+});
 let playerBackdropPress = false;
 function isPlayerBackdrop(event) {
   const rect = playerDialog.getBoundingClientRect();

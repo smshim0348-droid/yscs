@@ -80,6 +80,14 @@
     </article>
   </dialog>
 
+  <dialog id="venue-dialog" class="venue-dialog" aria-labelledby="venue-title">
+    <article class="venue-frame">
+      <header class="venue-topbar"><span id="venue-index"></span><button class="close-venue" aria-label="장소 지도 닫기"><span>MAP CLOSE</span><b aria-hidden="true">×</b></button></header>
+      <div class="venue-map-wrap"><iframe id="venue-map" title="용산 CS 개최 장소 지도" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+      <footer class="venue-copy"><div><span id="venue-edition"></span><h3 id="venue-title"></h3><p id="venue-address"></p></div><a id="venue-map-link" href="#" target="_blank" rel="noreferrer">GOOGLE MAPS에서 열기 <b aria-hidden="true">↗</b></a></footer>
+    </article>
+  </dialog>
+
   <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-title">
     <article class="player-frame">
       <header class="player-topbar"><span id="player-index"></span><button class="close-player" aria-label="플레이어 정보 닫기"><span>PROFILE CLOSE</span><b aria-hidden="true">×</b></button></header>

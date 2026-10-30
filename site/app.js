@@ -2,12 +2,13 @@ const escapeHtml = value => String(value).replace(/[&<>"]/g, character => ({'&':
 const localSimulation = ['localhost', '127.0.0.1'].includes(location.hostname) ? new URLSearchParams(location.search).get('simulate') : '';
 const seasonDeadline = season => new Date(new Date(season.dateTime).getTime() + 24 * 60 * 60 * 1000);
 const isSeasonExpired = (season, now = new Date()) => localSimulation === 'season-expired' || now >= seasonDeadline(season);
-const statsForIdentity = (identity, players = activePlayerData) => players.find(player => player.name === identity.name) || players[Number(identity.id) - 1] || fallbackPlayerData[Number(identity.id) - 1];
+const statsForIdentity = (identity, players = activePlayerData) => players.find(player => player.id === identity.id) || players[Number(identity.id) - 1] || fallbackPlayerData[Number(identity.id) - 1];
+const displayNameForIdentity = (identity, players = activePlayerData) => statsForIdentity(identity, players)?.name || identity.fallbackName;
 const rankingTemplate = (players = activePlayerData) => {
   const standings = playerDirectory.map(identity => ({ identity, titles:statsForIdentity(identity, players)?.championships || [] }))
     .sort((a, b) => b.titles.length - a.titles.length || Number(a.identity.id) - Number(b.identity.id));
   standings.forEach((item, index) => { item.rank = index && item.titles.length === standings[index - 1].titles.length ? standings[index - 1].rank : index + 1; });
-  return `<section class="ranking-strip" aria-label="YSCS 전체 플레이어 순위"><div class="ranking-heading"><span>YSCS CHAMPION RANKING</span><strong>우승 횟수 기준</strong></div><ol>${standings.map(item => `<li><b>${String(item.rank).padStart(2, '0')}</b><span><strong>${escapeHtml(item.identity.name)}</strong><small>PLAYER ${item.identity.id}</small></span><em>${item.titles.length}<small>WINS</small></em></li>`).join('')}</ol></section>`;
+  return `<section class="ranking-strip" aria-label="YSCS 전체 플레이어 순위"><div class="ranking-heading"><span>YSCS CHAMPION RANKING</span><strong>우승 횟수 기준</strong></div><ol>${standings.map(item => `<li><b>${String(item.rank).padStart(2, '0')}</b><span><strong>${escapeHtml(displayNameForIdentity(item.identity, players))}</strong><small>PLAYER ${item.identity.id}</small></span><em>${item.titles.length}<small>WINS</small></em></li>`).join('')}</ol></section>`;
 };
 const archiveGridTemplate = () => `<section class="champion-archive" aria-label="역대 용산 CS 챔피언">
   <div class="archive-intro"><span>THE CHAMPIONS ARCHIVE</span><p>썸네일을 선택하면 각 대회의 포스터와 우승 기록 전문을 볼 수 있습니다.</p></div>
@@ -18,7 +19,7 @@ const archiveGridTemplate = () => `<section class="champion-archive" aria-label=
 </section>`;
 const seasonParticipantsTemplate = () => `<section class="season-entrants" aria-label="참가 플레이어"><div class="season-entrants-heading"><span>CONFIRMED PLAYERS</span><a href="${upcomingSeason.tonamel.competitionUrl}" target="_blank" rel="noreferrer">TONAMEL 엔트리 확인 <b aria-hidden="true">↗</b></a></div><div class="season-entrant-grid">${upcomingSeason.tonamel.participants.map(participant => {
   const identity = playerDirectory.find(player => player.id === participant.playerId);
-  return `<article class="season-entrant"><span>${participant.playerId}</span><div><strong>${escapeHtml(identity?.name || participant.accountName)}</strong><small>${escapeHtml(participant.entryName)}</small></div></article>`;
+  return `<article class="season-entrant"><span>${participant.playerId}</span><div><strong>${escapeHtml(identity ? displayNameForIdentity(identity) : participant.accountName)}</strong><small>${escapeHtml(participant.entryName)}</small></div></article>`;
 }).join('')}</div><p class="season-source">ACCOUNT MATCH / ${escapeHtml(upcomingSeason.tonamel.status)} · 조직 ${escapeHtml(upcomingSeason.tonamel.organizationId)} · ${new Date(upcomingSeason.tonamel.lastCheckedAt).toLocaleDateString('ko-KR')} 확인</p></section>`;
 const seasonReadyTemplate = () => `<section class="season-ready" aria-label="다음 대회 준비 중"><span>BETWEEN SEASONS / NOTICE</span><i aria-hidden="true">✳</i><h3>다음 대회를 위한<br>준비 중입니다.</h3><p>${escapeHtml(upcomingSeason.title)} 일정은 개최 시각으로부터 24시간이 지나 보관 처리되었습니다.<br>새 대회가 모집을 시작하면 이 곳에 다시 안내합니다.</p><a href="${upcomingSeason.tonamel.organizationUrl}" target="_blank" rel="noreferrer">용산고등학교향우회 토나멜 <b aria-hidden="true">↗</b></a></section>`;
 const seasonScheduleTemplate = () => isSeasonExpired(upcomingSeason) ? seasonReadyTemplate() : `<section class="season-feature" aria-label="${escapeHtml(upcomingSeason.title)} 일정">
@@ -41,10 +42,10 @@ function renderRanking(players = activePlayerData) {
 const playerGridTemplate = players => `<section class="player-directory" aria-label="YSCS 플레이어 7명">
   <div class="player-directory-meta"><span>07 REGISTERED PLAYERS</span><p id="player-sync-state">서버 캐시 · 매주 금요일 09:00 자동 갱신</p></div>
   <div class="player-grid">${playerDirectory.map(identity => {
-    const stats = players.find(player => player.name === identity.name) || fallbackPlayerData.find(player => player.name === identity.name);
+    const stats = statsForIdentity(identity, players);
     return `<button class="player-card" type="button" data-player-id="${identity.id}" aria-haspopup="dialog" aria-controls="player-dialog">
       <span class="player-card-number">${identity.id}</span><span class="player-card-art"><img src="${identity.image}" alt="" loading="lazy"></span>
-      <span class="player-card-copy"><small>PLAYER ${identity.id}</small><strong>${escapeHtml(identity.name)}</strong>${stats.championships?.length ? `<span class="player-card-titles">${stats.championships.map(edition => `<b title="제${edition}회 용산 CS 우승"><i>★</i> 제${edition}회</b>`).join('')}</span>` : ''}<span>${stats.wins}W — ${stats.losses}L <i>${escapeHtml(stats.rate)}</i></span><em>${escapeHtml(stats.favoriteDeck)}</em></span>
+      <span class="player-card-copy"><small>PLAYER ${identity.id}</small><strong>${escapeHtml(stats.name || identity.fallbackName)}</strong>${stats.championships?.length ? `<span class="player-card-titles">${stats.championships.map(edition => `<b title="제${edition}회 용산 CS 우승"><i>★</i> 제${edition}회</b>`).join('')}</span>` : ''}<span>${stats.wins}W — ${stats.losses}L <i>${escapeHtml(stats.rate)}</i></span><em>${escapeHtml(stats.favoriteDeck)}</em></span>
     </button>`;
   }).join('')}</div>
 </section>`;
@@ -71,32 +72,38 @@ function buildPlayerData(csvText) {
   const matrixHeader = rows.findIndex(row => row[0] === '승\\패');
   const matchHeader = rows.findIndex(row => row[0] === '대회명' && row[2] === '승자');
   if (statHeader < 0 || matrixHeader < 0 || matchHeader < 0) throw new Error('시트 구조를 확인할 수 없습니다.');
-  const statMap = new Map(rows.slice(statHeader + 1, matrixHeader).filter(row => playerDirectory.some(player => player.name === row[0])).map(row => [row[0], { games:Number(row[1]), wins:Number(row[2]), losses:Number(row[3]), rate:row[4] }]));
+  const statRows = rows.slice(statHeader + 1, matrixHeader).filter(row => row[0]).slice(0, playerDirectory.length);
+  if (statRows.length !== playerDirectory.length) throw new Error(`플레이어 통합 기록이 ${statRows.length}개입니다.`);
+  const sheetPlayers = playerDirectory.map(identity => ({ id:identity.id, name:statRows[identity.sheetIndex][0], row:statRows[identity.sheetIndex] }));
+  const playerIdByName = new Map(sheetPlayers.map(player => [player.name, player.id]));
   const matrixNames = rows[matrixHeader].slice(1, 8);
   const matrix = new Map(rows.slice(matrixHeader + 1, matrixHeader + 8).map(row => [row[0], row.slice(1, 8).map(value => Number(value) || 0)]));
-  const deckCounts = new Map(playerDirectory.map(player => [player.name, new Map()]));
-  const championships = new Map(playerDirectory.map(player => [player.name, []]));
+  const deckCounts = new Map(playerDirectory.map(player => [player.id, new Map()]));
+  const championships = new Map(playerDirectory.map(player => [player.id, []]));
   rows.slice(matchHeader + 1).forEach(row => {
     [[row[2], row[3]], [row[4], row[5]]].forEach(([name, deck]) => {
-      if (!deckCounts.has(name) || !deck || deck === '-') return;
-      const counts = deckCounts.get(name); counts.set(deck, (counts.get(deck) || 0) + 1);
+      const playerId = playerIdByName.get(name);
+      if (!playerId || !deck || deck === '-') return;
+      const counts = deckCounts.get(playerId); counts.set(deck, (counts.get(deck) || 0) + 1);
     });
-    if (row[6]?.includes('용산시리즈') && championships.has(row[2])) {
+    const winnerId = playerIdByName.get(row[2]);
+    if (row[6]?.includes('용산시리즈') && winnerId) {
       const edition = Number(row[0]?.match(/제\s*(\d+)회/)?.[1]);
-      if (edition && !championships.get(row[2]).includes(edition)) championships.get(row[2]).push(edition);
+      if (edition && !championships.get(winnerId).includes(edition)) championships.get(winnerId).push(edition);
     }
   });
-  return playerDirectory.map(identity => {
-    const stats = statMap.get(identity.name);
-    if (!stats) throw new Error(`${identity.name}의 통합 기록이 없습니다.`);
-    const decks = [...deckCounts.get(identity.name).entries()].sort((a, b) => b[1] - a[1]);
+  return playerDirectory.map((identity, index) => {
+    const sheetPlayer = sheetPlayers[index];
+    const row = sheetPlayer.row;
+    const stats = { games:Number(row[1]), wins:Number(row[2]), losses:Number(row[3]), rate:row[4] };
+    const decks = [...deckCounts.get(identity.id).entries()].sort((a, b) => b[1] - a[1]);
     const opponents = {};
-    matrixNames.filter(name => name !== identity.name).forEach(name => {
+    matrixNames.filter(name => name !== sheetPlayer.name).forEach(name => {
       const opponentColumn = matrixNames.indexOf(name);
-      const playerColumn = matrixNames.indexOf(identity.name);
-      opponents[name] = [matrix.get(identity.name)?.[opponentColumn] || 0, matrix.get(name)?.[playerColumn] || 0];
+      const playerColumn = matrixNames.indexOf(sheetPlayer.name);
+      opponents[name] = [matrix.get(sheetPlayer.name)?.[opponentColumn] || 0, matrix.get(name)?.[playerColumn] || 0];
     });
-    return { name:identity.name, ...stats, favoriteDeck:decks[0]?.[0] || '기록 없음', championships:championships.get(identity.name).sort((a, b) => a - b), opponents };
+    return { id:identity.id, name:sheetPlayer.name, ...stats, favoriteDeck:decks[0]?.[0] || '기록 없음', championships:championships.get(identity.id).sort((a, b) => a - b), opponents };
   });
 }
 function latestRefreshBoundary(now = new Date()) {
@@ -274,19 +281,19 @@ function openArchive(id, button) {
 }
 function openPlayer(id, button) {
   const identity = playerDirectory.find(player => player.id === id);
-  const stats = activePlayerData.find(player => player.name === identity?.name);
+  const stats = activePlayerData.find(player => player.id === identity?.id) || activePlayerData[Number(id) - 1];
   if (!identity || !stats) return;
   playerTrigger = button;
   document.querySelector('#player-index').textContent = `${identity.id} / PLAYER PROFILE`;
   document.querySelector('#player-label').textContent = `YSCS REGISTERED PLAYER ${identity.id}`;
-  document.querySelector('#player-title').textContent = identity.name;
+  document.querySelector('#player-title').textContent = stats.name || identity.fallbackName;
   const titles = stats.championships || [];
   document.querySelector('#player-championships').innerHTML = titles.length
     ? `<span class="championship-label">YONGSAN SERIES CHAMPION <b>${titles.length}×</b></span><div class="championship-medals">${titles.map(edition => `<span class="championship-medal" title="제${edition}회 용산 CS 우승"><i>★</i><b>제${edition}회</b><small>CHAMPION</small></span>`).join('')}</div>`
     : '<span class="championship-empty">YONGSAN SERIES · CHALLENGER</span>';
   document.querySelector('#player-summary').innerHTML = `<div><small>통합 전적</small><strong>${stats.wins}W — ${stats.losses}L</strong><span>${stats.games} GAMES / ${escapeHtml(stats.rate)}</span></div><div><small>선호 덱</small><strong>${escapeHtml(stats.favoriteDeck)}</strong><span>MOST PLAYED DECK</span></div>`;
   document.querySelector('#player-versus').innerHTML = Object.entries(stats.opponents).map(([name, record]) => `<div><span>${escapeHtml(name)}</span><strong>${record[0]} <i>—</i> ${record[1]}</strong><small>W / L</small></div>`).join('');
-  const image = document.querySelector('#player-image'); image.src = identity.image; image.alt = `${identity.name} 대표 라인아트`; image.dataset.playerId = identity.id;
+  const image = document.querySelector('#player-image'); image.src = identity.image; image.alt = `${stats.name || identity.fallbackName} 대표 라인아트`; image.dataset.playerId = identity.id;
   playerDialog.showModal(); playerDialog.querySelector('.close-player').focus();
 }
 document.querySelectorAll('[data-section]').forEach(button => {

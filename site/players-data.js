@@ -1,19 +1,19 @@
 const playerSheetConfig = {
   csvUrl: 'https://docs.google.com/spreadsheets/d/1syPFQtNAiAhrj5BZBt0Z0mCWGiaVAxhYCTTEvh2gVBo/export?format=csv&gid=56643669',
   cachedCsvUrl: '/.netlify/functions/player-sheet',
-  cacheKey: 'yscs-player-stats-v2',
+  cacheKey: 'yscs-player-stats-v4',
   refreshWeekday: 5,
   refreshHour: 9
 };
 
 const playerDirectory = [
-  { id: '01', name: '티엘', image: 'assets/players/player-01.png' },
-  { id: '02', name: '타치바나 셰리', image: 'assets/players/player-02.png' },
-  { id: '03', name: '『3대 킹』', image: 'assets/players/player-03.png' },
-  { id: '04', name: '어스머신고수', image: 'assets/players/player-04.png' },
-  { id: '05', name: '강민성', image: 'assets/players/player-05.png' },
-  { id: '06', name: '앨리스는 어디있지?', image: 'assets/players/player-06.png' },
-  { id: '07', name: '몽', image: 'assets/players/player-07.png' }
+  { id: '01', sheetIndex: 3, fallbackName: '티엘', image: 'assets/players/player-01.png' },
+  { id: '02', sheetIndex: 1, fallbackName: '타치바나 셰리', image: 'assets/players/player-02.png' },
+  { id: '03', sheetIndex: 2, fallbackName: '『3대 킹』', image: 'assets/players/player-03.png' },
+  { id: '04', sheetIndex: 4, fallbackName: '어스머신고수', image: 'assets/players/player-04.png' },
+  { id: '05', sheetIndex: 0, fallbackName: '강민성', image: 'assets/players/player-05.png' },
+  { id: '06', sheetIndex: 5, fallbackName: '앨리스는 어디있지?', image: 'assets/players/player-06.png' },
+  { id: '07', sheetIndex: 6, fallbackName: '몽', image: 'assets/players/player-07.png' }
 ];
 
 const fallbackPlayerData = [
